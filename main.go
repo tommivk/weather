@@ -314,19 +314,15 @@ func handleCommand(input []string, weatherChan chan WeatherResult, errorChan cha
 			return
 		}
 		wg.Add(1)
-		go func() {
-			wg.Wait()
-			fmt.Print("\nCommand: ")
-		}()
 		getWeatherByCity(city, country, weatherChan, errorChan)
+		wg.Wait()
+		fmt.Print("\nCommand: ")
 
 	case "f":
 		wg.Add(len(config.Favourites))
-		go func() {
-			wg.Wait()
-			fmt.Print("\nCommand: ")
-		}()
 		fetchFavourites(weatherChan, errorChan)
+		wg.Wait()
+		fmt.Print("\nCommand: ")
 
 	case "list":
 		listFavourites()
