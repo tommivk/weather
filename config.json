@@ -1,0 +1,16 @@
+{
+  "Language": "en",
+  "Units": "metric",
+  "Favourites": [
+    {
+      "City": "Helsinki",
+      "Country": "FI",
+      "Coordinates": { "Lat": 60.16749, "Lon": 24.942747 }
+    },
+    {
+      "City": "Paris",
+      "Country": "FR",
+      "Coordinates": { "Lat": 48.85889, "Lon": 2.320041 }
+    }
+  ]
+}
