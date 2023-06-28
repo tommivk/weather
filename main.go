@@ -354,7 +354,7 @@ func main() {
 
 		select {
 		case cmd := <-cmdChan:
-			handleCommand(cmd, weatherChan, errorChan)
+			go handleCommand(cmd, weatherChan, errorChan, &wg)
 		case res := <-weatherChan:
 			printResult(res)
 		case err := <-errorChan:
