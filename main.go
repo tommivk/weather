@@ -113,6 +113,7 @@ func fetchWeather(coordinates Coordinates, weatherChan chan WeatherResult, error
 
 	if len(result.WeatherDetails) == 0 {
 		errorChan <- errors.New("Not found")
+		return
 	}
 
 	res := WeatherResult{
