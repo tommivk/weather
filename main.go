@@ -100,18 +100,19 @@ type WeatherResult struct {
 	City        string
 }
 
-func fetchWeather(coordinates Coordinates) (WeatherResult, error) {
+func fetchWeather(coordinates Coordinates, weatherChan chan WeatherResult, errorChan chan error) {
 	url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&units=metric&lang=%s&appid=%s", coordinates.Lat, coordinates.Lon, config.Language, API_KEY)
 	data, err := fetchData(url)
 	if err != nil {
-		return WeatherResult{}, err
+		errorChan <- err
+		return
 	}
 
 	var result WeatherResponse
 	json.Unmarshal(data, &result)
 
 	if len(result.WeatherDetails) == 0 {
-		return WeatherResult{}, errors.New("Not found")
+		errorChan <- errors.New("Not found")
 	}
 
 	res := WeatherResult{
@@ -121,8 +122,7 @@ func fetchWeather(coordinates Coordinates) (WeatherResult, error) {
 		Country:     result.LocationDetails.Country,
 		City:        result.City,
 	}
-
-	return res, nil
+	weatherChan <- res
 }
 
 func printResult(result WeatherResult) {
@@ -131,18 +131,13 @@ func printResult(result WeatherResult) {
 	fmt.Println("--------------------------------------------------------")
 }
 
-func fetchFavourites() error {
+func fetchFavourites(weatherChan chan WeatherResult, errorChan chan error) {
 	if len(config.Favourites) == 0 {
 		fmt.Println("No favourites added")
 	}
 	for i := 0; i < len(config.Favourites); i++ {
-		weather, err := fetchWeather(config.Favourites[i].Coordinates)
-		if err != nil {
-			return err
-		}
-		printResult(weather)
+		go fetchWeather(config.Favourites[i].Coordinates, weatherChan, errorChan)
 	}
-	return nil
 }
 
 func readConfigFile() error {
@@ -246,18 +241,14 @@ func addFavourite(city, country string) error {
 	return nil
 }
 
-func getWeatherByCity(city, country string) error {
+func getWeatherByCity(city, country string, weatherChan chan WeatherResult, errorChan chan error) {
 	data, err := fetchLocationData(city, country)
 	if err != nil {
-		return err
+		errorChan <- err
+		return
 	}
 	coordinates := Coordinates{Lat: data.Lat, Lon: data.Lon}
-	res, err := fetchWeather(coordinates)
-	if err != nil {
-		return err
-	}
-	printResult(res)
-	return nil
+	go fetchWeather(coordinates, weatherChan, errorChan)
 }
 
 func printCommands() {
@@ -272,78 +263,110 @@ func printCommands() {
 	fmt.Fprintln(w, "\n---------------------------------------------")
 }
 
+func handleInput(cmdChan chan []string) {
+	scanner := bufio.NewScanner(os.Stdin)
+
+	for {
+		if scanner.Scan() {
+			input := strings.Fields(scanner.Text())
+			cmdChan <- input
+		}
+
+		if err := scanner.Err(); err != nil {
+			log.Fatal("Failed to scan input", scanner.Err())
+		}
+	}
+}
+
+func handleCommand(input []string, weatherChan chan WeatherResult, errorChan chan error) {
+	if len(input) == 0 {
+		return
+	}
+	command := strings.ToLower(input[0])
+
+	var city, country string = "", ""
+
+	if len(input) > 1 {
+		city = strings.ToLower(input[1])
+	}
+	if len(input) > 2 {
+		country = strings.ToLower(input[2])
+	}
+	fmt.Println()
+
+	switch command {
+	case "w":
+		if len(input) < 2 {
+			fmt.Println("Missing city parameter")
+			return
+		}
+		getWeatherByCity(city, country, weatherChan, errorChan)
+		printResult(<-weatherChan)
+
+	case "f":
+		fetchFavourites(weatherChan, errorChan)
+
+		for i := 0; i < len(config.Favourites); i++ {
+			select {
+			case err := <-errorChan:
+				fmt.Println(err)
+			case res := <-weatherChan:
+				printResult(res)
+			}
+		}
+
+	case "list":
+		listFavourites()
+
+	case "fav":
+		if len(input) < 2 {
+			fmt.Println("Missing city parameter")
+			return
+		}
+		err := addFavourite(city, country)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+	case "remove":
+		err := removeFavourite(city)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+	case "help":
+		printCommands()
+
+	default:
+		fmt.Println("Unknown command")
+	}
+
+}
+
 func main() {
 	err := readConfigFile()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	weatherChan := make(chan WeatherResult)
+	errorChan := make(chan error)
+	cmdChan := make(chan []string)
+
 	printCommands()
 
-	scanner := bufio.NewScanner(os.Stdin)
+	go handleInput(cmdChan)
 
 	for {
 		fmt.Print("\nCommand: ")
 
-		if scanner.Scan() {
-			input := strings.Fields(scanner.Text())
-			if len(input) == 0 {
-				continue
-			}
-
-			command := strings.ToLower(input[0])
-
-			var city, country string = "", ""
-
-			if len(input) > 1 {
-				city = strings.ToLower(input[1])
-			}
-			if len(input) > 2 {
-				country = strings.ToLower(input[2])
-			}
-			fmt.Println()
-
-			switch command {
-			case "w":
-				if len(input) < 2 {
-					fmt.Println("Missing city parameter")
-					continue
-				}
-				err := getWeatherByCity(city, country)
-				if err != nil {
-					fmt.Println(err)
-				}
-			case "f":
-				err := fetchFavourites()
-				if err != nil {
-					fmt.Println(err)
-				}
-			case "list":
-				listFavourites()
-			case "fav":
-				if len(input) < 2 {
-					fmt.Println("Missing city parameter")
-					continue
-				}
-				err := addFavourite(city, country)
-				if err != nil {
-					fmt.Println(err)
-				}
-			case "remove":
-				err := removeFavourite(city)
-				if err != nil {
-					fmt.Println(err)
-				}
-			case "help":
-				printCommands()
-			default:
-				fmt.Println("Unknown command")
-			}
-
-		}
-		if err := scanner.Err(); err != nil {
-			log.Fatal("Failed to scan input", scanner.Err())
+		select {
+		case cmd := <-cmdChan:
+			handleCommand(cmd, weatherChan, errorChan)
+		case res := <-weatherChan:
+			printResult(res)
+		case err := <-errorChan:
+			fmt.Println(err)
 		}
 	}
-
 }
