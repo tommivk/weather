@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -279,7 +280,7 @@ func handleInput(cmdChan chan []string) {
 	}
 }
 
-func handleCommand(input []string, weatherChan chan WeatherResult, errorChan chan error) {
+func handleCommand(input []string, weatherChan chan WeatherResult, errorChan chan error, wg *sync.WaitGroup) {
 	if len(input) == 0 {
 		return
 	}
@@ -301,10 +302,19 @@ func handleCommand(input []string, weatherChan chan WeatherResult, errorChan cha
 			errorChan <- errors.New("Missing city parameter")
 			return
 		}
+		wg.Add(1)
+		go func() {
+			wg.Wait()
+			fmt.Print("\nCommand: ")
+		}()
 		getWeatherByCity(city, country, weatherChan, errorChan)
-		printResult(<-weatherChan)
 
 	case "f":
+		wg.Add(len(config.Favourites))
+		go func() {
+			wg.Wait()
+			fmt.Print("\nCommand: ")
+		}()
 		fetchFavourites(weatherChan, errorChan)
 
 	case "list":
@@ -332,7 +342,6 @@ func handleCommand(input []string, weatherChan chan WeatherResult, errorChan cha
 	default:
 		fmt.Println("Unknown command")
 	}
-
 }
 
 func main() {
@@ -349,14 +358,17 @@ func main() {
 
 	go handleInput(cmdChan)
 
-	for {
-		fmt.Print("\nCommand: ")
+	wg := sync.WaitGroup{}
 
+	fmt.Print("\nCommand: ")
+
+	for {
 		select {
 		case cmd := <-cmdChan:
 			go handleCommand(cmd, weatherChan, errorChan, &wg)
 		case res := <-weatherChan:
 			printResult(res)
+			wg.Done()
 		case err := <-errorChan:
 			fmt.Println(err)
 		}
