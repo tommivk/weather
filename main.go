@@ -219,31 +219,31 @@ func removeFavourite(city string) error {
 	return nil
 }
 
-func addFavourite(city, country string) {
+func addFavourite(city, country string) error {
 	for i := 0; i < len(config.Favourites); i++ {
 		c := config.Favourites[i].City
 		if strings.ToLower(c) == strings.ToLower(city) {
-			fmt.Printf("%s already exists in favourites\n", city)
-			return
+			return fmt.Errorf("%s already exists in favourites", city)
 		}
 	}
 
 	locationData, err := fetchLocationData(city, country)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	coordinates := Coordinates{Lat: locationData.Lat, Lon: locationData.Lon}
 	newFavourites := append(config.Favourites, Location{City: locationData.Name, Country: locationData.Country, Coordinates: coordinates})
 	config.Favourites = newFavourites
 	configBytes, err := json.Marshal(config)
 	if err != nil {
-		log.Fatal("Failed to marshal data: ", err)
+		return fmt.Errorf("Failed to marshal data: %s", err)
 	}
 	err = saveConfig(configBytes)
 	if err != nil {
-		log.Fatal("Failed to save config file: ", err)
+		return fmt.Errorf("Failed to save config file: %s", err)
 	}
 	fmt.Printf("New location %s, %s added to favourites\n", locationData.Name, locationData.Country)
+	return nil
 }
 
 func getWeatherByCity(city, country string) error {
@@ -325,7 +325,10 @@ func main() {
 					fmt.Println("Missing city parameter")
 					continue
 				}
-				addFavourite(city, country)
+				err := addFavourite(city, country)
+				if err != nil {
+					fmt.Println(err)
+				}
 			case "remove":
 				err := removeFavourite(city)
 				if err != nil {
