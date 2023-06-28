@@ -298,7 +298,7 @@ func handleCommand(input []string, weatherChan chan WeatherResult, errorChan cha
 	switch command {
 	case "w":
 		if len(input) < 2 {
-			fmt.Println("Missing city parameter")
+			errorChan <- errors.New("Missing city parameter")
 			return
 		}
 		getWeatherByCity(city, country, weatherChan, errorChan)
@@ -312,18 +312,18 @@ func handleCommand(input []string, weatherChan chan WeatherResult, errorChan cha
 
 	case "fav":
 		if len(input) < 2 {
-			fmt.Println("Missing city parameter")
+			errorChan <- errors.New("Missing city parameter")
 			return
 		}
 		err := addFavourite(city, country)
 		if err != nil {
-			fmt.Println(err)
+			errorChan <- err
 		}
 
 	case "remove":
 		err := removeFavourite(city)
 		if err != nil {
-			fmt.Println(err)
+			errorChan <- err
 		}
 
 	case "help":
