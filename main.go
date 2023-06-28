@@ -65,7 +65,10 @@ func fetchLocationData(city, country string) (GeoResponse, error) {
 	}
 
 	var result []GeoResponse
-	json.Unmarshal(data, &result)
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		return GeoResponse{}, err
+	}
 	if len(result) == 0 {
 		return GeoResponse{}, errors.New("Location not found")
 	}
@@ -110,7 +113,11 @@ func fetchWeather(coordinates Coordinates, weatherChan chan WeatherResult, error
 	}
 
 	var result WeatherResponse
-	json.Unmarshal(data, &result)
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		errorChan <- err
+		return
+	}
 
 	if len(result.WeatherDetails) == 0 {
 		errorChan <- errors.New("Not found")
@@ -154,7 +161,11 @@ func readConfigFile() error {
 		return err
 	}
 
-	json.Unmarshal(data, &config)
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
