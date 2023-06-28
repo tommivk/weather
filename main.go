@@ -307,15 +307,6 @@ func handleCommand(input []string, weatherChan chan WeatherResult, errorChan cha
 	case "f":
 		fetchFavourites(weatherChan, errorChan)
 
-		for i := 0; i < len(config.Favourites); i++ {
-			select {
-			case err := <-errorChan:
-				fmt.Println(err)
-			case res := <-weatherChan:
-				printResult(res)
-			}
-		}
-
 	case "list":
 		listFavourites()
 
