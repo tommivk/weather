@@ -105,7 +105,7 @@ type WeatherResult struct {
 }
 
 func fetchWeather(coordinates Coordinates, weatherChan chan WeatherResult, errorChan chan error) {
-	url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&units=metric&lang=%s&appid=%s", coordinates.Lat, coordinates.Lon, config.Language, API_KEY)
+	url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&units=%s&lang=%s&appid=%s", coordinates.Lat, coordinates.Lon, config.Units, config.Language, API_KEY)
 	data, err := fetchData(url)
 	if err != nil {
 		errorChan <- err
@@ -135,8 +135,15 @@ func fetchWeather(coordinates Coordinates, weatherChan chan WeatherResult, error
 }
 
 func printResult(result WeatherResult) {
+	symbol := "K"
+	if strings.ToLower(config.Units) == "imperial" {
+		symbol = "℉"
+	}
+	if strings.ToLower(config.Units) == "metric" {
+		symbol = "℃"
+	}
 	fmt.Printf("\nWeather in %s, %s: \n\n", result.City, result.Country)
-	fmt.Printf("%s \nTemperature: %f ℃ \nFeels like: %f ℃ \n\n", strings.Title(result.Description), result.Temperature, result.FeelsLike)
+	fmt.Printf("%s \nTemperature: %f %s \nFeels like: %f %s \n\n", strings.Title(result.Description), result.Temperature, symbol, result.FeelsLike, symbol)
 	fmt.Println("--------------------------------------------------------")
 }
 
