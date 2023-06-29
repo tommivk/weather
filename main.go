@@ -135,13 +135,17 @@ func fetchWeather(coordinates Coordinates, weatherChan chan WeatherResult, error
 }
 
 func printResult(result WeatherResult) {
-	symbol := "K"
-	if strings.ToLower(config.Units) == "imperial" {
+	var symbol string
+
+	switch strings.ToLower(config.Units) {
+	case "imperial":
 		symbol = "℉"
-	}
-	if strings.ToLower(config.Units) == "metric" {
+	case "metric":
 		symbol = "℃"
+	default:
+		symbol = "K"
 	}
+
 	fmt.Printf("\nWeather in %s, %s: \n\n", result.City, result.Country)
 	fmt.Printf("%s \nTemperature: %f %s \nFeels like: %f %s \n\n", strings.Title(result.Description), result.Temperature, symbol, result.FeelsLike, symbol)
 	fmt.Println("--------------------------------------------------------")
